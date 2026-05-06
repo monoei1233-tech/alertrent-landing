@@ -450,10 +450,23 @@
     }).join('');
   }
 
-  async function acceptAgency(id, pushToken, agencyName) {
+async function acceptAgency(id, pushToken, agencyName) {
     console.log('acceptAgency called - token:', pushToken, 'name:', agencyName);
+    // ✉️ نجلب البيانات أولاً قبل أي تحديث
+    const { data: agencyData } = await db.from('agencies').select('email, owner_name, name').eq('id', id).single();
+    console.log('Agency data:', agencyData);
     await db.from('agencies').update({ status: 'active' }).eq('id', id);
     if (pushToken) await sendPushNotification(pushToken, '✅ تم قبول طلبك!', 'مرحباً ' + agencyName + '، تم قبول طلب انضمامك في AlertRent.');
+    if (agencyData?.email) {
+      console.log('Sending email to:', agencyData.email);
+      await sendEmail(
+        agencyData.email,
+        '✅ تم قبول وكالتك في AlertRent',
+        buildWelcomeEmailHtml(agencyData.name || agencyName, agencyData.owner_name || agencyName)
+      );
+    } else {
+      console.log('No email found for agency');
+    }
     loadAgencies(); loadStats();
   }
 
