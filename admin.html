@@ -388,15 +388,14 @@
   async function sendEmail(to, subject, html) {
     if (!to) return;
     try {
-const res = await fetch('https://api.resend.com/emails', {
-  mode: 'no-cors',
-      method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-      });
+const res = await fetch('https://vhhhfcuvdepadnhrhcud.supabase.co/functions/v1/send-email', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoaGhmY3V2ZGVwYWRuaHJoY3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwODIxNDgsImV4cCI6MjA5MDY1ODE0OH0.YR2hcBpaYQWgj8pIirio5nTvvTgrs4s0af5C3i0qQrg',
+  },
+  body: JSON.stringify({ to, subject, html }),
+});
       const data = await res.json();
       console.log('Email result:', data);
     } catch (e) {
