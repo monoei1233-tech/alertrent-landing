@@ -380,6 +380,86 @@
     }
   }
 
+
+  // ===== إرسال الإيميلات عبر Resend API =====
+  const RESEND_API_KEY = 're_DqvZXSe3_CDMpoaLfUySPPDsayKKeUuXW';
+  const FROM_EMAIL = 'AlertRent <contact@alertrent.com>';
+
+  async function sendEmail(to, subject, html) {
+    if (!to) return;
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      });
+      const data = await res.json();
+      console.log('Email result:', data);
+    } catch (e) {
+      console.log('Email error:', e);
+    }
+  }
+
+  function buildWelcomeEmailHtml(agencyName, ownerName) {
+    return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>مرحباً بك في AlertRent</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:#0f172a;padding:32px;text-align:center;"><h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;">Alert<span style="color:#dc2626;">Rent</span></h1><p style="color:rgba(255,255,255,0.5);margin:8px 0 0;font-size:13px;">منصة حماية وكالات كراء السيارات</p></td></tr>
+<tr><td style="background:#16a34a;padding:16px;text-align:center;"><p style="color:#fff;margin:0;font-size:15px;font-weight:700;">✅ تم قبول وكالتك بنجاح!</p></td></tr>
+<tr><td style="padding:40px 36px;">
+<p style="color:#0f172a;font-size:18px;font-weight:700;margin:0 0 8px;">مرحباً ${ownerName}،</p>
+<p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">يسعدنا إخبارك بأن طلب تسجيل وكالتك <strong style="color:#0f172a;">${agencyName}</strong> في منصة AlertRent قد تم قبوله بنجاح.</p>
+<div style="text-align:center;margin-bottom:28px;"><a href="https://www.alertrent.com" style="background:#dc2626;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">🚀 افتح التطبيق الآن</a></div>
+<div style="background:#fef9c3;border-radius:10px;padding:16px;border:1px solid #fde68a;text-align:center;"><p style="color:#854d0e;font-size:14px;font-weight:700;margin:0;">🎁 تستفيد من شهر مجاني كامل!</p></div>
+</td></tr>
+<tr><td style="background:#f8fafc;padding:24px 36px;border-top:1px solid #e2e8f0;text-align:center;">
+<p style="color:#94a3b8;font-size:12px;margin:0;">© 2026 AlertRent 🇲🇦 | <a href="mailto:contact@alertrent.com" style="color:#64748b;text-decoration:none;">contact@alertrent.com</a></p>
+</td></tr>
+</table></td></tr></table></body></html>`;
+  }
+
+  function buildRejectionEmailHtml(agencyName, ownerName) {
+    return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>AlertRent — نتيجة طلب التسجيل</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:#0f172a;padding:32px;text-align:center;"><h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;">Alert<span style="color:#dc2626;">Rent</span></h1></td></tr>
+<tr><td style="background:#dc2626;padding:16px;text-align:center;"><p style="color:#fff;margin:0;font-size:15px;font-weight:700;">❌ لم يتم قبول طلب التسجيل</p></td></tr>
+<tr><td style="padding:40px 36px;">
+<p style="color:#0f172a;font-size:18px;font-weight:700;margin:0 0 8px;">مرحباً ${ownerName}،</p>
+<p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">نأسف لإخبارك بأن طلب تسجيل وكالتك <strong style="color:#0f172a;">${agencyName}</strong> لم يتم قبوله.</p>
+<div style="text-align:center;"><a href="mailto:contact@alertrent.com" style="background:#0f172a;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">📧 تواصل معنا</a></div>
+</td></tr>
+<tr><td style="background:#f8fafc;padding:24px 36px;border-top:1px solid #e2e8f0;text-align:center;">
+<p style="color:#94a3b8;font-size:12px;margin:0;">© 2026 AlertRent 🇲🇦</p>
+</td></tr>
+</table></td></tr></table></body></html>`;
+  }
+
+  function buildSubscriptionEmailHtml(agencyName, ownerName, plan, expiresAt) {
+    const planLabel = plan === 'monthly' ? 'الشهري' : 'السنوي';
+    const expiryDate = new Date(expiresAt).toLocaleDateString('ar-MA', { year:'numeric', month:'long', day:'numeric' });
+    return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>AlertRent — تفعيل الاشتراك</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:#0f172a;padding:32px;text-align:center;"><h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;">Alert<span style="color:#dc2626;">Rent</span></h1></td></tr>
+<tr><td style="background:#16a34a;padding:16px;text-align:center;"><p style="color:#fff;margin:0;font-size:15px;font-weight:700;">💳 تم تفعيل اشتراكك بنجاح!</p></td></tr>
+<tr><td style="padding:40px 36px;">
+<p style="color:#0f172a;font-size:18px;font-weight:700;margin:0 0 8px;">مرحباً ${ownerName}،</p>
+<p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 24px;">تم تفعيل اشتراك وكالتك <strong style="color:#0f172a;">${agencyName}</strong> — الباقة ${planLabel} — ينتهي: ${expiryDate}</p>
+<div style="text-align:center;"><a href="https://www.alertrent.com" style="background:#dc2626;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">🚀 افتح التطبيق</a></div>
+</td></tr>
+<tr><td style="background:#f8fafc;padding:24px 36px;border-top:1px solid #e2e8f0;text-align:center;">
+<p style="color:#94a3b8;font-size:12px;margin:0;">© 2026 AlertRent 🇲🇦</p>
+</td></tr>
+</table></td></tr></table></body></html>`;
+  }
+
   function login() {
     const password = document.getElementById('passwordInput').value;
     if (password === ADMIN_PASSWORD) {
@@ -452,9 +532,10 @@
 
 async function acceptAgency(id, pushToken, agencyName) {
     console.log('acceptAgency called - token:', pushToken, 'name:', agencyName);
-    // ✉️ نجلب البيانات أولاً قبل أي تحديث
+    // ✉️ نجلب البيانات أولاً
     const { data: agencyData } = await db.from('agencies').select('email, owner_name, name').eq('id', id).single();
     console.log('Agency data:', agencyData);
+    // ✉️ نجلب البيانات أولاً قبل أي تحديث
     await db.from('agencies').update({ status: 'active' }).eq('id', id);
     if (pushToken) await sendPushNotification(pushToken, '✅ تم قبول طلبك!', 'مرحباً ' + agencyName + '، تم قبول طلب انضمامك في AlertRent.');
     if (agencyData?.email) {
