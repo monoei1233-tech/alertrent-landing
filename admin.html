@@ -540,6 +540,15 @@ async function acceptAgency(id, pushToken, agencyName) {
     const { data, error } = await db.from('subscriptions').select('*, agencies(name, city, email, phone, push_token)').order('created_at', { ascending: false });
     if (error) { document.getElementById('subscriptionsList').innerHTML = '<div class="empty">⚠️ خطأ</div>'; return; }
     allSubscriptions = data || [];
+    // تحديث تلقائي للاشتراكات المنتهية
+    const now = new Date();
+    for (const sub of allSubscriptions) {
+      if (sub.status === 'active' && sub.expires_at && new Date(sub.expires_at) < now) {
+        await db.from('subscriptions').update({ status: 'expired' }).eq('id', sub.id);
+        await db.from('agencies').update({ status: 'frozen' }).eq('id', sub.agency_id);
+        sub.status = 'expired';
+      }
+    }
     document.getElementById('subTotal').textContent = allSubscriptions.length;
     document.getElementById('subPending').textContent = allSubscriptions.filter(s => s.status === 'pending').length;
     document.getElementById('subActive').textContent = allSubscriptions.filter(s => s.status === 'active').length;
@@ -562,11 +571,16 @@ async function acceptAgency(id, pushToken, agencyName) {
       const badgeClass=isActive?'badge-active':isExpired?'badge-expired':isRejected?'badge-rejected':'badge-pending';
       const badgeText=isActive?'✅ نشط':isExpired?'❌ منتهي':isRejected?'🚫 مرفوض':'⏳ قيد المراجعة';
       const planClass=sub.plan==='pro'?'plan-pro':'plan-basic', planText=sub.plan==='pro'?'⭐ Pro':'🔵 Basic';
-      const expiresText=sub.expires_at?'📅 ينتهي: '+new Date(sub.expires_at).toLocaleDateString('ar-MA'):'📅 لم يُفعَّل بعد';
+      const now=new Date(), expiresDate=sub.expires_at?new Date(sub.expires_at):null;
+      const daysLeft=expiresDate?Math.ceil((expiresDate-now)/(1000*60*60*24)):null;
+      const daysColor=daysLeft===null?'#64748b':daysLeft<=0?'#dc2626':daysLeft<=7?'#f97316':daysLeft<=10?'#eab308':'#16a34a';
+      const daysLabel=daysLeft===null?'📅 لم يُفعَّل بعد':daysLeft<=0?'⛔ منتهي':daysLeft<=7?`⚠️ ينتهي خلال ${daysLeft} يوم`:daysLeft<=10?`🟡 ينتهي خلال ${daysLeft} يوم`:`✅ ينتهي خلال ${daysLeft} يوم`;
+      const expiresText=`<span style="color:${daysColor};font-weight:bold;">${daysLabel}</span>`;
       const startsText=sub.starts_at?'🗓️ بدأ: '+new Date(sub.starts_at).toLocaleDateString('ar-MA'):'';
       const pushToken=sub.agencies?.push_token||'', agencyName=(sub.agencies?.name||'').replace(/'/g,"\\'");
+      const cardBorder=daysLeft!==null&&daysLeft<=7&&daysLeft>0?'border:2px solid #f97316;':daysLeft!==null&&daysLeft<=0?'border:2px solid #dc2626;':'';
       return `
-        <div class="card">
+        <div class="card" style="${cardBorder}">
           <div class="card-header">
             <div>
               <div class="card-title" style="display:flex;align-items:center;gap:10px;">🏢 ${sub.agencies?.name||'—'}<span class="plan-badge ${planClass}">${planText}</span></div>
@@ -580,7 +594,7 @@ async function acceptAgency(id, pushToken, agencyName) {
           </div>
           <div class="actions">
             ${isPending?`<button class="btn-accept" onclick="activateSubscription('${sub.id}','${sub.agency_id}','${pushToken}','${agencyName}')">✅ تفعيل (شهر)</button><button class="btn-reject" onclick="rejectSubscription('${sub.id}','${sub.agency_id}','${pushToken}','${agencyName}')">✕ رفض</button>`:''}
-            ${isActive?`<button class="btn-accept" onclick="renewSubscription('${sub.id}')">🔄 تجديد شهر</button><button class="btn-reject" onclick="expireSubscription('${sub.id}','${sub.agency_id}')">⏹️ إيقاف</button>`:''}
+            ${isActive?`<button class="btn-accept" onclick="renewSubscription('${sub.id}')">🔄 تجديد شهر</button><button class="btn-accept" style="background:#16a34a" onclick="renewYearSubscription('${sub.id}')">📅 تجديد سنة</button><button class="btn-reject" onclick="expireSubscription('${sub.id}','${sub.agency_id}')">⏹️ إيقاف</button>`:''}
             ${isExpired||isRejected?`<button class="btn-accept" onclick="activateSubscription('${sub.id}','${sub.agency_id}','${pushToken}','${agencyName}')">🔄 إعادة تفعيل</button>`:''}
             <button class="btn-delete" onclick="deleteSubscription('${sub.id}')">🗑️ حذف</button>
           </div>
@@ -598,10 +612,18 @@ async function acceptAgency(id, pushToken, agencyName) {
 
   async function renewSubscription(subId) {
     const {data:sub}=await db.from('subscriptions').select('expires_at').eq('id',subId).single();
-    const base=sub?.expires_at?new Date(sub.expires_at):new Date();
+    const base=sub?.expires_at&&new Date(sub.expires_at)>new Date()?new Date(sub.expires_at):new Date();
     const newExpiry=new Date(base); newExpiry.setMonth(newExpiry.getMonth()+1);
     await db.from('subscriptions').update({expires_at:newExpiry.toISOString(),status:'active'}).eq('id',subId);
-    alert('🔄 تم تجديد الاشتراك'); loadSubscriptions();
+    alert('🔄 تم تجديد الاشتراك شهراً'); loadSubscriptions();
+  }
+
+  async function renewYearSubscription(subId) {
+    const {data:sub}=await db.from('subscriptions').select('expires_at').eq('id',subId).single();
+    const base=sub?.expires_at&&new Date(sub.expires_at)>new Date()?new Date(sub.expires_at):new Date();
+    const newExpiry=new Date(base); newExpiry.setFullYear(newExpiry.getFullYear()+1);
+    await db.from('subscriptions').update({expires_at:newExpiry.toISOString(),status:'active'}).eq('id',subId);
+    alert('📅 تم تجديد الاشتراك سنة كاملة'); loadSubscriptions();
   }
 
   async function rejectSubscription(subId, agencyId, pushToken, agencyName) {
