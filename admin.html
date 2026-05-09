@@ -538,6 +538,17 @@ async function acceptAgency(id, pushToken, agencyName) {
     // ✉️ نجلب البيانات أولاً قبل أي تحديث
     await db.from('agencies').update({ status: 'active' }).eq('id', id);
     if (pushToken) await sendPushNotification(pushToken, '✅ تم قبول طلبك!', 'مرحباً ' + agencyName + '، تم قبول طلب انضمامك في AlertRent.');
+    // 🎁 إضافة شهر مجاني تلقائياً
+    const now = new Date();
+    const expires = new Date(now);
+    expires.setMonth(expires.getMonth() + 1);
+    await db.from('subscriptions').insert({
+      agency_id: id,
+      plan: 'free_trial',
+      status: 'active',
+      starts_at: now.toISOString(),
+      expires_at: expires.toISOString(),
+    });
     if (agencyData?.email) {
       console.log('Sending email to:', agencyData.email);
       await sendEmail(
